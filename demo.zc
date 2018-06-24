@@ -76,13 +76,14 @@ class GrabSpinner : Fist {
 				invoker.SpinningThing.SetXYZ(invoker.Owner.Pos);
 				invoker.Spinner.Reset();
 				invoker.Spinner.mo = invoker.SpinningThing;
+			}
+			
+		Hold:
+			#### # 1 {
 				invoker.Spinner.DesVel = CountInv(invoker.AmmoType1);
 				if (invoker.Invert)
 					invoker.Spinner.DesVel = -invoker.Spinner.DesVel;
 			}
-			
-		Hold:
-			#### # 1;
 			#### # 0 A_ReFire;
 			
 			#### # 0 { invoker.Spinner.DesVel = 0; invoker.Spinner.LandAt(0.); }
