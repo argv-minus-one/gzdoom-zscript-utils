@@ -1,0 +1,117 @@
+struct ActorSpinner play {
+	/** The actor being spun. */
+	Actor mo;
+	
+	/** Current angular velocity of the object, in degrees per tic. */
+	float Vel;
+	
+	/** Desired angular velocity. As long as Vel != DesVel, Vel will increase/decrease every tic (by Accel/Decel) until it reaches DesVel. */
+	float DesVel;
+	
+	/** When accelerating, this is how much Vel in/decreases per tic. */
+	float Accel;
+	
+	/** If not zero, acceleration will be at this rate until Vel reaches DesVel. */
+	private float TmpAccel;
+	
+	/** If TmpAccel is in use, then when Vel reaches DesVel, rotation will snap to this angle (if possible). */
+	private float SnapAngle;
+	
+	/** Resets the state of this ActorSpinner. The fields mo, DesVel, Accel, and Decel are not affected. */
+	void Reset() {
+		Vel = TmpAccel = 0;
+	}
+	
+	void Tick() {
+		if (!mo) {
+			Console.Printf("\cgActorSpinner.Tick called, but mo (the actor to be rotated) is null!");
+			return;
+		}
+		
+		if (TmpAccel != 0.) {
+			if ((Vel >= DesVel) != (Vel + TmpAccel >= DesVel)) {
+				// Reached DesVel while TmpAccel is active.
+				// Try to snap to SnapAngle. If impossible, get as close as possible.
+				
+				// This is the range of achievable angular velocities on this tic. X is in the negative direction, Y is in the positive direction.
+				let allowedVel = (Vel - Accel, Vel + Accel);
+				// This is the range of achievable roll angles on this tic.
+				let allowedRoll = (mo.Roll + allowedVel.X, mo.Roll + allowedVel.Y);
+				
+				// Apply acceleration and rotation.
+				Vel = clamp(DesVel, allowedVel.X, allowedVel.Y);
+				mo.Roll = clamp(SnapAngle, allowedRoll.X, allowedRoll.Y);
+				
+				// TmpAccel mode complete.
+				TmpAccel = 0;
+			}
+			else {
+				// Apply acceleration and rotation according to TmpAccel.
+				Vel += TmpAccel;
+				mo.Roll = Actor.Normalize180(mo.Roll + Vel);
+			}
+		}
+		else {
+			// Apply acceleration.
+			if (DesVel > Vel)
+				Vel = min(Vel + Accel, DesVel);
+			else
+				Vel = max(Vel - Accel, DesVel);
+			
+			// Apply rotation.
+			mo.Roll = Actor.Normalize180(mo.Roll + Vel);
+		}
+	}
+	
+	/**
+	 * Accelerate or decelerate the object such that, after enough rotations, its angular velocity will equal DesVel when its roll crosses the angle desiredRoll. Be sure to set DesVel *before* calling this method.
+	 *
+	 * After this method is called, this ActorSpinner will enter landing mode. Do not change the DesVel field while this mode is active; that will make the animation behave strangely. The IsLandingInProgress method returns true if this mode is active. Call CancelLanding to cancel this mode and resume normal operation. Changing DesVel and immediately calling this method again is also safe.
+	 *
+	 * The main use case of this method is to make the object spin down such that, when it stops spinning, it ends up at the desired roll angle (typically zero).
+	 */
+	void LandAt(float desiredRoll) {
+		SnapAngle = desiredRoll;
+		
+		let low = DesVel < Vel? -Accel : 0;
+		let high = DesVel > Vel? Accel : 0;
+		let step = (high - low) / 1000.;
+		float searchStart, searchEnd;
+		
+		if (DesVel < Vel) {
+			searchStart = low;
+			searchEnd = high;
+		}
+		else {
+			searchStart = high;
+			searchEnd = low;
+			step = -step;
+		}
+		
+		for (let mayAccel = searchStart; (mayAccel >= searchEnd) == (searchStart >= searchEnd); mayAccel += step) {
+			let time = (DesVel - Vel + mayAccel) / mayAccel;
+			let landAngle = Actor.Normalize180(mo.Roll + (time * (Vel + ((DesVel - Vel + mayAccel + mayAccel) / 2.))));
+			let da = Actor.deltaangle(desiredRoll, landAngle);
+			
+			if (da > -Accel && da < Accel) {
+				TmpAccel = mayAccel;
+				return;
+			}
+		}
+		
+		Console.Printf("\cgSpriteSpinner(%s) @ (% 03.5f, % 03.5f) cannot compute a landing acceleration slope!", mo.GetClassName(), Vel, mo.Roll);
+		mo.Roll = desiredRoll;
+		Vel = DesVel;
+		TmpAccel = 0;
+	}
+	
+	/** Cancels the effect of a previous call to LandAt. */
+	void CancelLanding() {
+		TmpAccel = 0;
+	}
+	
+	/** Returns true if this ActorSpinner is still in landing mode. */
+	bool IsLandingInProgress() const {
+		return TmpAccel != 0.;
+	}
+}
