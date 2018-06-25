@@ -1,4 +1,4 @@
-# gzdoom-ActorSpinner
+# ActorSpinner
 **Rotational control for GZDoom actors**
 
 This is a small library for GZDoom's ZScript language, for the purpose of controlling a continuously rotating actor. It consists of a `struct ActorSpinner`, with the following functionality:
