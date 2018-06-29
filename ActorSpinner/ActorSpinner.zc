@@ -78,11 +78,14 @@ struct ActorSpinner play {
 		if (desiredRoll < mo.Roll)
 			desiredRoll += 360;
 		
-		int spinCount = 1 + ceil((Vel * Vel / Accel - 2 * (desiredRoll - mo.Roll) - 1.) / 2 * 360.);
-		float adjustedRoll = desiredRoll + spinCount * 360. + Vel / 2;
+		let avel = abs(Vel);
+		int spinCount = 1 + ceil((avel * avel / Accel - 2 * (desiredRoll - mo.Roll) - 1.) / 2 * 360.);
+		float adjustedRoll = desiredRoll + spinCount * 360. + avel / 2;
 		float degLeft = desiredRoll - mo.Roll;
-		TmpAccelTime = ceil(2 * degLeft / Vel + 1.);
-		TmpAccel = Vel * Vel / (2 * degLeft + 1.);
+		TmpAccelTime = ceil(2 * degLeft / avel + 1.);
+		TmpAccel = avel * avel / (2 * degLeft + 1.);
+		if (Vel > 0.)
+			TmpAccel = -TmpAccel;
 	}
 	
 	/** Cancels the effect of a previous call to LandAt. */
