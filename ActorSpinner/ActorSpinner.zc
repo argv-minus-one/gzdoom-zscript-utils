@@ -13,6 +13,7 @@ struct ActorSpinner play {
 	
 	/** If not zero, acceleration will be at this rate until Vel reaches DesVel. */
 	private float TmpAccel;
+	private int TmpAccelTime;
 	
 	/** If TmpAccel is in use, then when Vel reaches DesVel, rotation will snap to this angle (if possible). */
 	private float SnapAngle;
@@ -29,7 +30,7 @@ struct ActorSpinner play {
 		}
 		
 		if (TmpAccel != 0.) {
-			if ((Vel >= DesVel) != (Vel + TmpAccel >= DesVel)) {
+			if (((Vel >= DesVel) != (Vel + TmpAccel >= DesVel)) || (TmpAccelTime == 0)) {
 				// Reached DesVel while TmpAccel is active.
 				// Try to snap to SnapAngle. If impossible, get as close as possible.
 				
@@ -48,6 +49,7 @@ struct ActorSpinner play {
 			else {
 				// Apply acceleration and rotation according to TmpAccel.
 				Vel += TmpAccel;
+				TmpAccelTime--;
 				mo.Roll = Actor.Normalize180(mo.Roll + Vel);
 			}
 		}
@@ -73,36 +75,14 @@ struct ActorSpinner play {
 	void LandAt(float desiredRoll) {
 		SnapAngle = desiredRoll;
 		
-		let low = DesVel < Vel? -Accel : 0;
-		let high = DesVel > Vel? Accel : 0;
-		let step = (high - low) / 1000.;
-		float searchStart, searchEnd;
+		if (desiredRoll < mo.Roll)
+			desiredRoll += 360;
 		
-		if (DesVel < Vel) {
-			searchStart = low;
-			searchEnd = high;
-		}
-		else {
-			searchStart = high;
-			searchEnd = low;
-			step = -step;
-		}
-		
-		for (let mayAccel = searchStart; (mayAccel >= searchEnd) == (searchStart >= searchEnd); mayAccel += step) {
-			let time = (DesVel - Vel + mayAccel) / mayAccel;
-			let landAngle = Actor.Normalize180(mo.Roll + (time * (Vel + ((DesVel - Vel + mayAccel + mayAccel) / 2.))));
-			let da = Actor.deltaangle(desiredRoll, landAngle);
-			
-			if (da > -Accel && da < Accel) {
-				TmpAccel = mayAccel;
-				return;
-			}
-		}
-		
-		Console.Printf("\cgSpriteSpinner(%s) @ (% 03.5f, % 03.5f) cannot compute a landing acceleration slope!", mo.GetClassName(), Vel, mo.Roll);
-		mo.Roll = desiredRoll;
-		Vel = DesVel;
-		TmpAccel = 0;
+		int spinCount = 1 + ceil((Vel * Vel / Accel - 2 * (desiredRoll - mo.Roll) - 1.) / 2 * 360.);
+		float adjustedRoll = desiredRoll + spinCount * 360. + Vel / 2;
+		float degLeft = desiredRoll - mo.Roll;
+		TmpAccelTime = ceil(2 * degLeft / Vel + 1.);
+		TmpAccel = Vel * Vel / (2 * degLeft + 1.);
 	}
 	
 	/** Cancels the effect of a previous call to LandAt. */
