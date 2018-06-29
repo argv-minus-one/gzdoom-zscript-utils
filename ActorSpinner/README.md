@@ -24,7 +24,7 @@ This consists of three files:
 The actual `ActorSpinner` code is game-independent, but the demo only works in Doom 1/2/TNT/Plutonia. So:
 
 1. Download this repository onto your computer.
-2. Load it into GZDoom as a mod, with a suitable Doom IWAD.
+2. Load the `ActorSpinner` folder into GZDoom as a mod, with a suitable Doom IWAD.
 3. `give GrabSpinner`
 4. Push weapon button 3 (where the shotgun normally lives).
 5. Hold down your alt fire button (typically the right mouse button) to select a desired angular velocity. It'll count up from zero as long as you hold the button down, and stop when you let go. The counter is shown in your primary ammo display.
