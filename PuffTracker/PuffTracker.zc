@@ -1,0 +1,59 @@
+struct PuffTracker play {
+	Array<Actor> Puffs;
+	
+	void Add(Actor source, Actor target, Actor puff, Weapon wep = null) {
+		puff.target = source;
+		puff.tracer = target;
+		puff.master = wep;
+		
+		for (let i = 0; i < Puffs.Size(); i++)
+		if (!Puffs[i]) {
+			// Insert this puff into an existing null slot in the array.
+			Puffs[i] = puff;
+			return;
+		}
+		
+		// Otherwise, add to the end of the array.
+		Puffs.Push(puff);
+	}
+	
+	Actor Find(Actor target, Class<Actor> puffType = "Actor") {
+		for (let i = 0; i < Puffs.Size(); i++)
+		if (Puffs[i] && Puffs[i].tracer == target && Puffs[i] is puffType)
+			return Puffs[i];
+		
+		return null;
+	}
+	
+	Actor PlaceAtNearestPoint(Actor source, Actor target, Class<Actor> puffType, int flags = 0, Weapon wep = null) {
+		let puff = Find(target, puffType);
+		let isNew = false;
+		
+		if (!puff) {
+			puff = source.SpawnPuff(puffType, (0, 0, 0), 0, 0, 0, flags: flags, victim: target);
+			Add(source, target, puff, wep);
+			isNew = true;
+		}
+		
+		PlaceExistingAtNearestPoint(puff, isNew: isNew);
+		return puff;
+	}
+	
+	static void PlaceExistingAtNearestPoint(Actor puff, bool isNew = false) {
+		// This puff's target or tracer is gone, there is not enough information to move it, so leave it alone.
+		if (!puff.tracer || !puff.target)
+			return;
+		
+		let vt = puff.target.Vec3To(puff.tracer).Unit();
+		let pit = -asin(vt.Z);
+		puff.Warp(
+			puff.tracer,
+			xofs: puff.tracer.Radius * -vt.X,
+			yofs: puff.tracer.Radius * -vt.Y,
+			angle: puff.target.AngleTo(puff.tracer),
+			flags: WARPF_ABSOLUTEOFFSET|WARPF_ABSOLUTEANGLE|WARPF_NOCHECKPOSITION|(isNew? 0 : WARPF_INTERPOLATE)|WARPF_COPYVELOCITY,
+			heightoffset: clamp((45. + pit) / 90., 0, 1),
+			pitch: pit
+		);
+	}
+}

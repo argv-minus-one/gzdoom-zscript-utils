@@ -1,0 +1,49 @@
+class ContinuousBulletPuff : BulletPuff {
+	states {
+		Spawn:
+		Melee:
+			PUFF A 4 bright;
+			PUFF BCDCB 4;
+			loop;
+	}
+}
+
+class Puffer : Fist {
+	default {
+		Weapon.SlotNumber 3;
+	}
+	
+	private PuffTracker pt;
+	
+	states {
+		Fire:
+			PUNG D 1 {
+				// Update positions of existing puffs.
+				for (let i = 0; i < invoker.pt.Puffs.Size(); i++)
+				if (invoker.pt.Puffs[i]) {
+					if (invoker.pt.Puffs[i].tracer && invoker.pt.Puffs[i].tracer.bShootable)
+						invoker.pt.PlaceExistingAtNearestPoint(invoker.pt.Puffs[i]);
+					else
+						// Clean up puffs on things that no longer exist or are no longer shootable.
+						// Your mod's puffs will only need this if they last until destroyed, like the demo ContinuousBulletPuff class. If they are temporary, like a typical puff, you don't need to clean them up like this; they'll go away on their own once their animation ends.
+						invoker.pt.Puffs[i].Destroy();
+				}
+				
+				// Check if there is a new target to generate a puff for.
+				FLineTraceData traced;
+				Actor newTarget = null;
+				if (self.LineTrace(self.Angle, 512, self.Pitch, offsetz: self.player? self.player.ViewHeight : self.MissileHeight, data: traced) && traced.HitActor && traced.HitActor.bShootable)
+					invoker.pt.PlaceAtNearestPoint(self, traced.HitActor, "ContinuousBulletPuff", flags: PF_HITTHING, wep: invoker);
+			}
+			#### # 0 A_ReFire;
+			#### # 0 {
+				// Delete all of the active puffs.
+				for (let i = 0; i < invoker.pt.Puffs.Size(); i++)
+				if (invoker.pt.Puffs[i])
+					invoker.pt.Puffs[i].Destroy();
+				
+				invoker.pt.Puffs.Clear();
+			}
+			goto Ready;
+	}
+}
