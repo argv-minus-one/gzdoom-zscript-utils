@@ -25,7 +25,7 @@ struct PuffTracker play {
 		return null;
 	}
 	
-	Actor PlaceAtNearestPoint(Actor source, Actor target, Class<Actor> puffType, int flags = 0, Weapon wep = null) {
+	Actor, bool PlaceAtNearestPoint(Actor source, Actor target, Class<Actor> puffType, int flags = 0, Weapon wep = null) {
 		let puff = Find(target, puffType);
 		let isNew = false;
 		
@@ -36,7 +36,7 @@ struct PuffTracker play {
 		}
 		
 		PlaceExistingAtNearestPoint(puff, isNew: isNew);
-		return puff;
+		return puff, isNew;
 	}
 	
 	static void PlaceExistingAtNearestPoint(Actor puff, bool isNew = false) {
