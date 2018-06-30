@@ -25,13 +25,25 @@ struct PuffTracker play {
 		return null;
 	}
 	
+	// Note: If flags & PF_TEMPORARY, this will always spawn a new puff, and won't actually track it.
 	Actor, bool PlaceAtNearestPoint(Actor source, Actor target, Class<Actor> puffType, int flags = 0, Weapon wep = null) {
-		let puff = Find(target, puffType);
+		Actor puff;
 		let isNew = false;
+		
+		if (!(flags & PF_TEMPORARY))
+			puff = Find(target, puffType);
 		
 		if (!puff) {
 			puff = source.SpawnPuff(puffType, (0, 0, 0), 0, 0, 0, flags: flags, victim: target);
-			Add(source, target, puff, wep);
+			
+			if (flags & PF_TEMPORARY) {
+				puff.target = source;
+				puff.tracer = target;
+				puff.master = wep;
+			}
+			else
+				Add(source, target, puff, wep);
+			
 			isNew = true;
 		}
 		
