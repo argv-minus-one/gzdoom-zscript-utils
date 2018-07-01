@@ -20,15 +20,24 @@ struct AnimSpeedScaler play {
 					Target.Tics--;
 				else
 					Target.SetState(Target.CurState.NextState);
+				
+				// Advancing states might cause the target to stop existing, so check for that.
+				if (!Target)
+					return;
 			}
 			
 			// If the target is an inventory item owned by a player, also skip tics on its psprites.
 			if (Target is "Inventory" && Inventory(Target).Owner && Inventory(Target).Owner.player)
 			for (let psp = Inventory(Target).Owner.player.psprites; psp; psp = psp.Next)
 			if (psp.Caller == Target)
-			for (let i = 0; i > tics; i--)
+			for (let i = 0; i > tics; i--) {
 				// We *can* call psp.Tick(), though.
 				psp.Tick();
+				
+				// As with the main actor's state, check for psprite disappearance.
+				if (!psp)
+					break;
+			}
 			/*{
 				if (psp.Tics < 1)
 					break;
