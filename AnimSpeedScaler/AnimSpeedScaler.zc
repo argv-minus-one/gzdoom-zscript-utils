@@ -1,7 +1,6 @@
 struct AnimSpeedScaler play {
 	Actor Target;
 	float Scale;
-	private bool PrevControlSpeed;
 	private float Debt;
 	
 	void Tick() {
