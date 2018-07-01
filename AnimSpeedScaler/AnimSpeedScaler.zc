@@ -1,0 +1,65 @@
+struct AnimSpeedScaler play {
+	Actor Target;
+	float Scale;
+	private bool PrevControlSpeed;
+	private float Debt;
+	
+	void Tick() {
+		if (!Target)
+			return;
+		
+		if (Debt <= -1.) {
+			// Skip tics.
+			int tics = ceil(Debt);
+			
+			for (let i = 0; i > tics; i--) {
+				// As convenient as it would be, we can't just call Target.Tick(), because that would cause infinite recursion.
+				// If ZScript had mixins, this would just be a simple Super.Tick() call. *sigh*
+				if (Target.Tics < 1)
+					break; // Don't act on indefinite states.
+				else if (Target.Tics > 1)
+					Target.Tics--;
+				else
+					Target.SetState(Target.CurState.NextState);
+			}
+			
+			// If the target is an inventory item owned by a player, also skip tics on its psprites.
+			if (Target is "Inventory" && Inventory(Target).Owner && Inventory(Target).Owner.player)
+			for (let psp = Inventory(Target).Owner.player.psprites; psp; psp = psp.Next)
+			if (psp.Caller == Target)
+			for (let i = 0; i > tics; i--)
+				// We *can* call psp.Tick(), though.
+				psp.Tick();
+			/*{
+				if (psp.Tics < 1)
+					break;
+				else if (psp.Tics > 1)
+					psp.Tics--;
+				else
+					psp.SetState(psp.CurState.NextState);
+			}*/
+			
+			Debt -= tics;
+			Debt += Scale;
+		}
+		else if (Debt >= 1.) {
+			// Delay by a tic.
+			if (Target.Tics >= 1) // Don't act on indefinite states.
+				Target.Tics++;
+			
+			// If the target is an inventory item owned by a player, also delay its psprites.
+			if (Target is "Inventory" && Inventory(Target).Owner && Inventory(Target).Owner.player)
+			for (let psp = Inventory(Target).Owner.player.psprites; psp; psp = psp.Next)
+			if (psp.Caller == Target && psp.Tics >= 1)
+				psp.Tics++;
+			
+			Debt--;
+		}
+		else
+			Debt += Scale;
+	}
+	
+	void Reset() {
+		Debt = 0;
+	}
+}

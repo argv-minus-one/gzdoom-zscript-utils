@@ -1,0 +1,2 @@
+server float weapon_speed_scale = 1;
+server float imp_speed_scale = 1;

@@ -1,0 +1,83 @@
+class SpeedScalingPistol : Pistol {
+	private AnimSpeedScaler scaler;
+	
+	default {
+		Weapon.SlotNumber 2;
+		Weapon.AmmoUse 0;
+	}
+	
+	override void BeginPlay() {
+		Super.BeginPlay();
+		scaler.Target = self;
+	}
+	
+	override void Tick() {
+		Super.Tick();
+		
+		if (Owner && Owner.player && Owner.player.ReadyWeapon == self) {
+			scaler.Scale = weapon_speed_scale;
+			scaler.Tick();
+		}
+	}
+}
+
+class SpeedScalingChaingun : Chaingun {
+	private AnimSpeedScaler scaler;
+	
+	default {
+		Weapon.SlotNumber 4;
+		Weapon.AmmoUse 0;
+	}
+	
+	override void BeginPlay() {
+		Super.BeginPlay();
+		scaler.Target = self;
+	}
+	
+	override void Tick() {
+		Super.Tick();
+		
+		if (Owner && Owner.player && Owner.player.ReadyWeapon == self) {
+			scaler.Scale = weapon_speed_scale;
+			scaler.Tick();
+		}
+	}
+}
+
+class SpeedScalingShotgun : Shotgun {
+	private AnimSpeedScaler scaler;
+	
+	default {
+		Weapon.SlotNumber 3;
+		Weapon.AmmoUse 0;
+	}
+	
+	override void BeginPlay() {
+		Super.BeginPlay();
+		scaler.Target = self;
+	}
+	
+	override void Tick() {
+		Super.Tick();
+		
+		if (Owner && Owner.player && Owner.player.ReadyWeapon == self) {
+			scaler.Scale = weapon_speed_scale;
+			scaler.Tick();
+		}
+	}
+}
+
+class SpeedScalingImp : DoomImp {
+	private AnimSpeedScaler scaler;
+	
+	override void BeginPlay() {
+		Super.BeginPlay();
+		scaler.Target = self;
+	}
+	
+	override void Tick() {
+		Super.Tick();
+		scaler.Scale = imp_speed_scale;
+		scaler.Tick();
+	}
+}
