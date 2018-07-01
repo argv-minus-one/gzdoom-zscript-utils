@@ -38,14 +38,6 @@ struct AnimSpeedScaler play {
 				if (!psp)
 					break;
 			}
-			/*{
-				if (psp.Tics < 1)
-					break;
-				else if (psp.Tics > 1)
-					psp.Tics--;
-				else
-					psp.SetState(psp.CurState.NextState);
-			}*/
 			
 			Debt -= tics;
 			Debt += Scale;
