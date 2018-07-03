@@ -78,12 +78,16 @@ struct ActorSpinner play {
 		if (desiredRoll < mo.Roll)
 			desiredRoll += 360;
 		
-		let avel = abs(Vel);
-		int spinCount = 1 + ceil((avel * avel / Accel - 2 * (desiredRoll - mo.Roll) - 1.) / 2 * 360.);
-		float adjustedRoll = desiredRoll + spinCount * 360. + avel / 2;
+		let avel  = abs(Vel);
+		let avel2 = avel * avel;
+		
 		float degLeft = desiredRoll - mo.Roll;
-		TmpAccelTime = ceil(2 * degLeft / avel + 1.);
-		TmpAccel = avel * avel / (2 * degLeft + 1.);
+		int spinCount = ceil((avel2 / Accel - 2 * degLeft - 1.) / 720);
+		float adjustedRoll = desiredRoll + spinCount * 360. + avel / 2;
+		
+		degLeft = adjustedRoll - mo.Roll;
+		TmpAccelTime = 2 * degLeft / avel + 1;
+		TmpAccel = avel2 / (2 * degLeft + 1.);
 		if (Vel > 0.)
 			TmpAccel = -TmpAccel;
 	}
