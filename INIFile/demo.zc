@@ -1,0 +1,36 @@
+class MapDescription : Actor {
+	override void PostBeginPlay() {
+		INIFile data;
+		data.ReadLumpsNamed("DemoMapDescriptions");
+		
+		let mapName = level.MapName;
+		mapName.ToUpper();
+		let description = data.Get(mapName, "Description");
+		
+		// INIFile provides a convenience method for looking up a section for the current map:
+		let descriptionExtra = data.CurrentMapGet("DescriptionExtra");
+		
+		// Keys can also exist outside of any section.
+		if (!description)
+			description = data.Get("", "DefaultDescription");
+		
+		Console.Printf("Description for %s: %s", level.MapName, description? description : data.Get("", "Description"));
+		
+		if (descriptionExtra)
+			Console.Printf("DescriptionExtra for %s: %s", level.MapName, descriptionExtra);
+		else
+			Console.Printf("No DescriptionExtra for %s.", level.MapName);
+		
+		Destroy();
+	}
+}
+
+class MapDescriptionDump : Actor {
+	override void PostBeginPlay() {
+		INIFile data;
+		data.ReadLumpsNamed("DemoMapDescriptions");
+		data.DumpToConsole();
+		
+		Destroy();
+	}
+}

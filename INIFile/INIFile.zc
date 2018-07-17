@@ -1,0 +1,235 @@
+struct INIFile {
+	// Bit mask for which of the 32 first ASCII characters is whitespace.
+	// ASCII 32 (space) doesn't fit into a 32-bit integer, so it's handled separately.
+	const WhitespaceASCIIChars = 15872;
+	
+	static String TrimSpace(String s, bool fromStart = true, bool fromEnd = true) {
+		let len = s.Length();
+		if (len == 0)
+			return "";
+		
+		int start = 0, end = max(len - 1, 0);
+		
+		// Find first non-whitespace character.
+		if (fromStart)
+		for (let i = 0; i < len; i++) {
+			let code = s.CharCodeAt(i);
+			if (
+				code == 32 ||
+				(code <= 31 && ((1 << code) & WhitespaceASCIIChars))
+			)
+				start = i + 1;
+			else
+				break;
+		}
+		
+		// Find last non-whitespace character.
+		if (fromEnd)
+		for (let i = end; i > start; i--) {
+			let code = s.CharCodeAt(i);
+			if (
+				code == 32 ||
+				(code <= 31 && ((1 << code) & WhitespaceASCIIChars))
+			)
+				end = i - 1;
+			else
+				break;
+		}
+		
+		if (start == end)
+			return "";
+		else
+			return s.Mid(start, (end - start) + 1);
+	}
+	
+	static bool IsAllSpace(String s) {
+		for (let i = 0, len = s.Length(); i < len; i++) {
+			let code = s.CharCodeAt(i);
+			if (
+				code != 32 &&
+				(code > 31 || !((1 << code) & WhitespaceASCIIChars))
+			)
+				return false;
+		}
+		
+		return true;
+	}
+	
+	Array<INISection> Sections;
+	
+	void Clear() {
+		Sections.Clear();
+	}
+	
+	void Read(int lump) {
+		let text = Wads.ReadLump(lump);
+		Array<String> lines;
+		text.Split(lines, "\n", TOK_SKIPEMPTY);
+		INISection curSection = null;
+		int curKey = -1;
+		
+		for (let lineNum = 0, lineCount = lines.Size(); lineNum < lineCount; lineNum++) {
+			let line = TrimSpace(lines[lineNum]);
+			
+			// Skip blank lines and comment lines.
+			if (line == "" || line.CharAt(0) == "#")
+				continue;
+			
+			if (line.CharAt(0) == "[") {
+				// This is a section header.
+				let end = line.IndexOf("]", 1);
+				
+				if (end < 0) {
+					Console.Printf("\cgLump %d line %d: Section header does not contain a ']' character.", lump, lineNum);
+					end = line.Length();
+				}
+				else if (end != line.Length() - 1) {
+					Console.Printf("\cgLump %d line %d: Ignoring garbage text after end of section header: %s", lump, lineNum, line.Mid(end + 1));
+				}
+				
+				let sectionName = line.Mid(1, end - 1);
+				
+				curSection = NewSection(sectionName);
+				curKey = -1;
+			}
+			else {
+				if (!curSection) {
+					// No section for this key, so make a special blank section for it.
+					curSection = NewSection("");
+				}
+				
+				let equalSign = line.IndexOf("=");
+				
+				if (equalSign >= 0) {
+					// This is a key=value line.
+					let key = TrimSpace(line.Left(equalSign), fromStart: false);
+					let value = TrimSpace(line.Mid(equalSign + 1), fromEnd: false);
+					String oldValue;
+					[oldValue, curKey] = curSection.Set(key, value);
+				}
+				else if (curKey != -1) {
+					// This is a continuation line. Append its contents to the value of the current key.
+					curSection.Values[curKey] = curSection.Values[curKey] .. (curSection.Values[curKey] == ""? "" : "\n") .. line;
+				}
+				else {
+					// This is garbage.
+					Console.Printf("\cgLump %d line %d: Ignoring garbage text: %s", lump, lineNum, line);
+				}
+			}
+		}
+	}
+	
+	void ReadLumpsNamed(String lumpName, int ns = Wads.GlobalNamespace) {
+		for (let lump = Wads.FindLump(lumpName, ns: ns); lump >= 0; lump = Wads.FindLump(lumpName, lump + 1, ns: ns))
+			Read(lump);
+	}
+	
+	INISection NewSection(String name) {
+		let s = Section(name);
+		if (!s) {
+			s = new("INISection");
+			s.Name = name;
+			Sections.Push(s);
+		}
+		return s;
+	}
+	
+	INISection Section(String sectionName) const {
+		for (let i = 0, s = Sections.Size(); i < s; i++)
+			if (Sections[i] && Sections[i].Name == sectionName)
+				return Sections[i];
+		
+		return null;
+	}
+	
+	INISection CurrentMapSection() const {
+		let mapName = level.MapName;
+		mapName.ToUpper();
+		return Section(mapName);
+	}
+	
+	String, INISection, int Get(String sectionName, String key) const {
+		let section = Section(sectionName);
+		if (!section)
+			return "", null, -1;
+		
+		String value;
+		int keyIndex;
+		[value, keyIndex] = section.Get(key);
+		
+		return value, section, keyIndex;
+	}
+	
+	String, INISection, int CurrentMapGet(String key) const {
+		let mapName = level.MapName;
+		mapName.ToUpper();
+		return Get(mapName, key);
+	}
+	
+	String, INISection, int Set(String sectionName, String key, String value) {
+		let section = NewSection(sectionName);
+		String oldValue;
+		int keyIndex;
+		[oldValue, keyIndex] = section.Set(key, value);
+		return oldValue, section, keyIndex;
+	}
+	
+	void DumpToConsole() const {
+		for (let sec = 0, secs = Sections.Size(); sec < secs; sec++) {
+			let so = Sections[sec];
+			Console.Printf("[%s]", so.Name);
+			
+			for (let key = 0, keys = so.Keys.Size(); key < keys; key++)
+				Console.Printf("%s=%s", so.Keys[key], so.Values[key]);
+		}
+	}
+}
+
+class INISection {
+	String Name;
+	Array<String> Keys, Values;
+	
+	int IndexOf(String key) const {
+		let idx = Keys.Find(key);
+		return idx < Keys.Size()? idx : -1;
+	}
+	
+	String, int Get(String key) const {
+		let idx = Keys.Find(key), found = idx < Keys.Size();
+		return (found? Values[idx] : ""), (found? idx : -1);
+	}
+	
+	String, int CurrentMapGet() const {
+		let mapName = level.MapName;
+		mapName.ToUpper();
+		return Get(mapName);
+	}
+	
+	String, int Set(String key, String value) {
+		let idx = Keys.Find(key), ov = "";
+		
+		if (idx < Keys.Size()) {
+			ov = Values[idx];
+			Values[idx] = value;
+		}
+		else {
+			Keys.Push(key);
+			Values.Push(value);
+		}
+		
+		return ov, idx;
+	}
+	
+	String Remove(String key) {
+		let idx = Keys.Find(key);
+		String ov = "";
+		
+		if (idx < Keys.Size()) {
+			ov = Values[idx];
+			Keys.Delete(idx);
+			Values.Delete(idx);
+		}
+		
+		return ov;
+	}
+}
