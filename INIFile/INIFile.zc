@@ -238,4 +238,17 @@ class INISection {
 		
 		return ov;
 	}
+	
+	void Merge(INISection other, bool keepExisting = true, bool keyIgnoreCase = false) {
+		for (uint otherIndex = 0, otherSize = other.Keys.Size(); otherIndex < otherSize; otherIndex++) {
+			let myIndex = IndexOf(other.Keys[otherIndex], ignoreCase: keyIgnoreCase);
+			
+			if (myIndex == Keys.Size()) {
+				Keys.Push(other.Keys[otherIndex]);
+				Values.Push(other.Values[otherIndex]);
+			}
+			else if (!keepExisting)
+				Values[myIndex] = other.Values[otherIndex];
+		}
+	}
 }
