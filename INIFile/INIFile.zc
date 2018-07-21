@@ -185,6 +185,72 @@ struct INIFile {
 				Console.Printf("%s=%s", so.Keys[key], so.Values[key]);
 		}
 	}
+	
+	/**
+	 * Scan all loaded actor classes, and merge together keys in the corresponding INI sections.
+	 *
+	 * Section names ending with + apply to that class and all subclasses.  
+	 * Section names ending with - apply to that class and all superclasses.
+	 *
+	 * The result will be that all keys in + or - sections appear in the corresponding exact-match sections.
+	 *
+	 * @param purgeSuperSubSections If true, + and - sections will be removed after merging.
+	 * @param purgeNoMatch If true, sections matching no known class will be removed after merging.
+	 */
+	void MergeByActorClass(bool purgeSuperSubSections = false, bool purgeNoMatch = false, bool keyIgnoreCase = false) {
+		for (uint classIndex = 0, classCount = AllActorClasses.Size(); classIndex < classCount; classIndex++) {
+			Class<Object> subjClass = AllActorClasses[classIndex];
+			let subjName = subjClass.GetClassName();
+			let subjSection = Section(subjName, ignoreCase: true);
+			let superSection = Section(subjName .. "-", ignoreCase: true);
+			
+			// Walk up the list of superclasses.
+			for (let parClass = subjClass; parClass; parClass = parClass.GetParentClass()) {
+				let parName = parClass.GetClassName();
+				
+				// Merge in its + section, if any.
+				let parSubSection = Section(parName .. "+", ignoreCase: true);
+				if (parSubSection) {
+					if (!subjSection)
+						subjSection = NewSection(subjName, ignoreCase: true);
+					subjSection.Merge(parSubSection);
+				}
+				
+				// Merge in this class' - section, if any.
+				if (superSection) {
+					let parSection = NewSection(parName, ignoreCase: true);
+					parSection.Merge(superSection);
+				}
+				
+				// Stop at Actor, ignoring its superclasses.
+				// The only reason we do this is because there is no global list of non-actor classes…
+				if (parClass == 'Actor')
+					break;
+			}
+		}
+		
+		if (purgeNoMatch || purgeSuperSubSections)
+		for (uint sectionIndex = Sections.Size() - 1; sectionIndex >= 0; sectionIndex--) {
+			let sectionName = Sections[sectionIndex].Name;
+			let nameLen = sectionName.Length();
+			
+			if (nameLen >= 2)
+			switch (sectionName.CharCodeAt(nameLen - 1)) {
+				case 43: // +
+				case 45: // -
+					if (purgeSuperSubSections) {
+						Sections.Delete(sectionIndex);
+						continue;
+					}
+					
+					sectionName = sectionName.Left(nameLen - 1);
+			}
+			
+			Class<Actor> sectionClass = sectionName;
+			if (!sectionClass)
+				Sections.Delete(sectionIndex);
+		}
+	}
 }
 
 class INISection {

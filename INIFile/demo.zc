@@ -33,3 +33,14 @@ class MapDescriptionDump : Actor {
 		Destroy();
 	}
 }
+
+class ClassDescriptionDump : Actor {
+	override void PostBeginPlay() {
+		INIFile data;
+		data.ReadLumpsNamed("DemoClassDescriptions");
+		data.MergeByActorClass(purgeSuperSubSections: true, purgeNoMatch: true);
+		data.DumpToConsole();
+		
+		Destroy();
+	}
+}
