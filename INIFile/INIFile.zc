@@ -36,7 +36,7 @@ struct INIFile {
 				break;
 		}
 		
-		if (start == end)
+		if (start > end)
 			return "";
 		else
 			return s.Mid(start, (end - start) + 1);
