@@ -61,7 +61,7 @@ struct INIFile {
 		Sections.Clear();
 	}
 	
-	void Read(int lump) {
+	void Read(int lump, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) {
 		let text = Wads.ReadLump(lump);
 		Array<String> lines;
 		text.Split(lines, "\n", TOK_SKIPEMPTY);
@@ -89,7 +89,7 @@ struct INIFile {
 				
 				let sectionName = line.Mid(1, end - 1);
 				
-				curSection = NewSection(sectionName);
+				curSection = NewSection(sectionName, ignoreCase: sectionIgnoreCase);
 				curKey = uint.max;
 			}
 			else {
@@ -105,7 +105,7 @@ struct INIFile {
 					let key = TrimSpace(line.Left(equalSign), fromStart: false);
 					let value = TrimSpace(line.Mid(equalSign + 1), fromEnd: false);
 					String oldValue;
-					[oldValue, curKey] = curSection.Set(key, value);
+					[oldValue, curKey] = curSection.Set(key, value, keyIgnoreCase: keyIgnoreCase);
 				}
 				else if (curKey != uint.max) {
 					// This is a continuation line. Append its contents to the value of the current key.
@@ -119,13 +119,13 @@ struct INIFile {
 		}
 	}
 	
-	void ReadLumpsNamed(String lumpName, int ns = Wads.GlobalNamespace) {
+	void ReadLumpsNamed(String lumpName, int ns = Wads.GlobalNamespace, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) {
 		for (let lump = Wads.FindLump(lumpName, ns: ns); lump >= 0; lump = Wads.FindLump(lumpName, lump + 1, ns: ns))
-			Read(lump);
+			Read(lump, sectionIgnoreCase: sectionIgnoreCase, keyIgnoreCase: keyIgnoreCase);
 	}
 	
-	INISection NewSection(String name) {
-		let s = Section(name);
+	INISection NewSection(String name, bool ignoreCase = false) {
+		let s = Section(name, ignoreCase: ignoreCase);
 		if (!s) {
 			s = new("INISection");
 			s.Name = name;
@@ -134,22 +134,26 @@ struct INIFile {
 		return s;
 	}
 	
-	INISection Section(String sectionName) const {
-		for (uint i = 0, s = Sections.Size(); i < s; i++)
-			if (Sections[i] && Sections[i].Name == sectionName)
-				return Sections[i];
+	INISection, uint Section(String sectionName, bool ignoreCase = false) const {
+		uint i, s;
+		for (i = 0, s = Sections.Size(); i < s; i++) {
+			let section = Sections[i];
+			if (!section)
+				continue;
+			let foundName = section.name;
+			if (ignoreCase? foundName ~== sectionName : foundName == sectionName)
+				return section, i;
+		}
 		
-		return null;
+		return null, i;
 	}
 	
 	INISection CurrentMapSection() const {
-		let mapName = level.MapName;
-		mapName.ToUpper();
-		return Section(mapName);
+		return Section(level.MapName, ignoreCase: true);
 	}
 	
-	String, INISection, uint Get(String sectionName, String key) const {
-		let section = Section(sectionName);
+	String, INISection, uint Get(String sectionName, String key, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) const {
+		let section = Section(sectionName, ignoreCase: sectionIgnoreCase);
 		if (!section)
 			return "", null, 0;
 		
@@ -160,13 +164,11 @@ struct INIFile {
 		return value, section, keyIndex;
 	}
 	
-	String, INISection, uint CurrentMapGet(String key) const {
-		let mapName = level.MapName;
-		mapName.ToUpper();
-		return Get(mapName, key);
+	String, INISection, uint CurrentMapGet(String key, bool ignoreCase = false) const {
+		return Get(level.MapName, key, sectionIgnoreCase: true, keyIgnoreCase: ignoreCase);
 	}
 	
-	String, INISection, uint Set(String sectionName, String key, String value) {
+	String, INISection, uint Set(String sectionName, String key, String value, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) {
 		let section = NewSection(sectionName);
 		String oldValue;
 		uint keyIndex;
@@ -189,25 +191,31 @@ class INISection {
 	String Name;
 	Array<String> Keys, Values;
 	
-	uint IndexOf(String key) const {
-		return Keys.Find(key);
+	uint IndexOf(String key, bool ignoreCase = false) const {
+		if (!ignoreCase || key == "")
+			return Keys.Find(key);
+		else {
+			uint idx, size;
+			for (idx = 0, size = Keys.Size(); idx < size; idx++)
+			if (Keys[idx] ~== key)
+				break;
+			return idx;
+		}
 	}
 	
-	String, uint Get(String key) const {
-		let idx = Keys.Find(key), found = idx < Keys.Size();
-		return (found? Values[idx] : ""), idx;
+	String, uint Get(String key, bool ignoreCase = false) const {
+		let idx = IndexOf(key, ignoreCase: ignoreCase);
+		return (idx == Values.Size()? "" : Values[idx]), idx;
 	}
 	
 	String, uint CurrentMapGet() const {
-		let mapName = level.MapName;
-		mapName.ToUpper();
-		return Get(mapName);
+		return Get(level.MapName, ignoreCase: true);
 	}
 	
-	String, uint Set(String key, String value) {
-		let idx = Keys.Find(key), ov = "";
+	String, uint Set(String key, String value, bool keyIgnoreCase = false) {
+		let idx = IndexOf(key, ignoreCase: keyIgnoreCase), ov = "";
 		
-		if (idx < Keys.Size()) {
+		if (idx != Values.Size()) {
 			ov = Values[idx];
 			Values[idx] = value;
 		}
@@ -219,9 +227,8 @@ class INISection {
 		return ov, idx;
 	}
 	
-	String Remove(String key) {
-		let idx = Keys.Find(key);
-		String ov = "";
+	String Remove(String key, bool ignoreCase = false) {
+		let idx = IndexOf(key, ignoreCase: ignoreCase), ov = "";
 		
 		if (idx < Keys.Size()) {
 			ov = Values[idx];
