@@ -83,6 +83,10 @@ Represents a complete INI file (or several of them). The main methods are:
 	
 	Also like `Get`, there are the variants `CurrentMapGetInt`, `CurrentMapGetDouble`, and `CurrentMapGetBool`.
 
+* `void MergeByActorClass(bool purgeSuperSubSections = false, bool purgeNoMatch = false)`
+	
+	See [“Merging Data by Actor Class”](#user-content-merging-data-by-actor-class), below.
+
 You can also look up sections. This is faster if you need to get several values from the same section. The `INIFile` methods for doing so are:
 
 * `INISection Section(String name)`
@@ -92,50 +96,6 @@ You can also look up sections. This is faster if you need to get several values 
 * `INISection CurrentMapSection()`
 	
 	Looks up a section whose name equals that of the current map, such as `MAP01`. As with the `Section` method, it returns `null` if there is no such section.
-
-* `void MergeByActorClass(bool purgeSuperSubSections = false, bool purgeNoMatch = false)`
-	
-	Scan all loaded actor classes, and merge together keys in the corresponding INI sections.
-	
-	Section names ending with `+` apply to that class and all subclasses.  
-	Section names ending with `-` apply to that class and all superclasses.
-	
-	For example, suppose you had this INI file:
-	
-	```
-	[Weapon+]
-	CanHurt=1
-	
-	[Medigun]
-	CanHurt=0
-	```
-	
-	After performing `MergeByActorClass`, the result will be a section for the `Weapon` class and every subclass, containing the key-value pair `CanHurt=true`, except the `Medigun` class, whose section contains `CanHurt=false` instead. Then, you can load this information:
-	
-	```cpp
-	INIFile ini;
-	ini.ReadLumpsNamed("ClassInfo.ini");
-	ini.MergeByActorClass();
-	…
-	Weapon someWeapon = …;
-	bool weaponCanHurt = ini.Get(someWeapon.GetClassName(), "CanHurt").ToInt();
-	```
-	
-	In this example `weaponCanHurt` will be true unless `someWeapon` is of the class `Medigun`. It'll still be true if `someWeapon` is of some subclass of `Medigun`, because the section header `[Medigun]` applies to only the exact class. You could make it apply to all subclasses of `Medigun` too:
-	
-	```
-	[Medigun+]
-	CanHurt=0
-	```
-	
-	Similarly, you can apply a key-value pair to a class and all of its superclasses. For example:
-	
-	```
-	[Shotgun-]
-	Awesomeness=1
-	```
-	
-	Now, `Actor`, `StateProvider`, `Weapon`, `DoomWeapon`, and `Shotgun` will all have `Awesomeness=1`, but all other classes will not have an `Awesomeness` key.
 
 ### INISection
 
@@ -156,6 +116,56 @@ Represents a single section of an INI file (or several, merged together). `INISe
 * `void Merge(INISection other, bool keepExisting = true)`
 	
 	Merges another `INISection`'s keys into this one. If `keepExisting` is `false`, key-value pairs in the other `INISection` will replace existing ones in this one; otherwise, existing key-value pairs will not be replaced (default).
+
+## Merging Data by Actor Class
+
+`struct INIFile` has this method:
+
+```cpp
+void MergeByActorClass(bool purgeSuperSubSections = false, bool purgeNoMatch = false)
+```
+
+This will scan all loaded actor classes, and merge together keys in the corresponding INI sections.
+
+Section names ending with `+` apply to that class and all subclasses.  
+Section names ending with `-` apply to that class and all superclasses.
+
+For example, suppose you had this INI file:
+
+```
+[Weapon+]
+CanHurt=1
+
+[Medigun]
+CanHurt=0
+```
+
+After performing `MergeByActorClass`, the result will be a section for the `Weapon` class and every subclass, containing the key-value pair `CanHurt=true`, except the `Medigun` class, whose section contains `CanHurt=false` instead. Then, you can load this information:
+
+```cpp
+INIFile ini;
+ini.ReadLumpsNamed("ClassInfo.ini");
+ini.MergeByActorClass();
+…
+Weapon someWeapon = …;
+bool weaponCanHurt = ini.Get(someWeapon.GetClassName(), "CanHurt").ToInt();
+```
+
+In this example `weaponCanHurt` will be true unless `someWeapon` is of the class `Medigun`. It'll still be true if `someWeapon` is of some subclass of `Medigun`, because the section header `[Medigun]` applies to only the exact class. You could make it apply to all subclasses of `Medigun` too:
+
+```
+[Medigun+]
+CanHurt=0
+```
+
+Similarly, you can apply a key-value pair to a class and all of its superclasses. For example:
+
+```
+[Shotgun-]
+Awesomeness=1
+```
+
+Now, `Actor`, `StateProvider`, `Weapon`, `DoomWeapon`, and `Shotgun` will all have `Awesomeness=1`, but all other classes will not have an `Awesomeness` key.
 
 ## INI Format
 
