@@ -55,6 +55,17 @@ struct INIFile {
 		return true;
 	}
 	
+	static bool ParseBool(String s) {
+		if (s == "1" || s ~== "true" || s ~== "yes")
+			return true;
+		else if (!s || s == "0" || s ~== "false" || s ~== "no")
+			return false;
+		else {
+			Console.Printf("\cgInvalid bool value: %s", s);
+			return false;
+		}
+	}
+	
 	Array<INISection> Sections;
 	bool SectionCaseSensitive, KeyCaseSensitive;
 	
@@ -166,8 +177,44 @@ struct INIFile {
 		return value, section, keyIndex;
 	}
 	
+	int, INISection, uint GetInt(String sectionName, String key, int base = 0) const {
+		String s;
+		INISection sec;
+		uint i;
+		[s, sec, i] = Get(sectionName, key);
+		return s.ToInt(base), sec, i;
+	}
+	
+	double, INISection, uint GetDouble(String sectionName, String key) const {
+		String s;
+		INISection sec;
+		uint i;
+		[s, sec, i] = Get(sectionName, key);
+		return s.ToDouble(), sec, i;
+	}
+	
+	bool, INISection, uint GetBool(String sectionName, String key) const {
+		String s;
+		INISection sec;
+		uint i;
+		[s, sec, i] = Get(sectionName, key);
+		return ParseBool(s), sec, i;
+	}
+	
 	String, INISection, uint CurrentMapGet(String key) const {
 		return Get(level.MapName, key);
+	}
+	
+	int, INISection, uint CurrentMapGetInt(String key, int base = 0) const {
+		return GetInt(level.MapName, key, base);
+	}
+	
+	double, INISection, uint CurrentMapGetDouble(String key) const {
+		return GetDouble(level.MapName, key);
+	}
+	
+	bool, INISection, uint CurrentMapGetBool(String key) const {
+		return GetBool(level.MapName, key);
 	}
 	
 	String, INISection, uint Set(String sectionName, String key, String value) {
@@ -284,8 +331,41 @@ class INISection {
 		return (idx == Values.Size()? "" : Values[idx]), idx;
 	}
 	
+	int, uint GetInt(String key, int base = 0) const {
+		String s;
+		uint i;
+		[s, i] = Get(key);
+		return s.ToInt(base), i;
+	}
+	
+	double, uint GetDouble(String key) const {
+		String s;
+		uint i;
+		[s, i] = Get(key);
+		return s.ToDouble(), i;
+	}
+	
+	bool, uint GetBool(String key) const {
+		String s;
+		uint i;
+		[s, i] = Get(key);
+		return INIFile.ParseBool(s), i;
+	}
+	
 	String, uint CurrentMapGet() const {
 		return Get(level.MapName);
+	}
+	
+	int, uint CurrentMapGetInt(int base = 0) const {
+		return GetInt(level.MapName, base);
+	}
+	
+	double, uint CurrentMapGetDouble() const {
+		return GetDouble(level.MapName);
+	}
+	
+	bool, uint CurrentMapGetBool() const {
+		return GetBool(level.MapName);
 	}
 	
 	String, uint Set(String key, String value) {

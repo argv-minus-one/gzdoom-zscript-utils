@@ -74,9 +74,14 @@ Represents a complete INI file (or several of them). The main methods are:
 * `String Get(String sectionName, String key)`
 	
 	Gets the value of the given key in the given section. Returns `""` (the empty string) if there is no such section and/or key.
+	
+	There are also `GetInt`, `GetDouble`, and `GetBool` methods, which return those types instead.
+
 * `String CurrentMapGet(String key)`
 	
 	Like `Get`, but looks for a section with the same name as the current map (e.g. `MAP01`). If you're using this library to store extra information about maps, and you want to look up that information for the current map, use `CurrentMapGet`.
+	
+	Also like `Get`, there are the variants `CurrentMapGetInt`, `CurrentMapGetDouble`, and `CurrentMapGetBool`.
 
 You can also look up sections. This is faster if you need to get several values from the same section. The `INIFile` methods for doing so are:
 
@@ -139,10 +144,14 @@ Represents a single section of an INI file (or several, merged together). `INISe
 * `String Get(String key)`
 	
 	Gets the value of the given key in this section. Returns `""` (the empty string) if there is no such key.
+	
+	There are also `GetInt`, `GetDouble`, and `GetBool` methods, which return those types instead.
 
 * `String CurrentMapGet()`
 	
 	Gets the value of the key with the same name as the current map (e.g. `MAP01`). This is like the `CurrentMapGet` method on `INIFile`, but for looking up keys rather than sections.
+	
+	As with `Get`, there are the variants `CurrentMapGetInt`, `CurrentMapGetDouble`, and `CurrentMapGetBool`.
 
 * `void Merge(INISection other, bool keepExisting = true)`
 	
