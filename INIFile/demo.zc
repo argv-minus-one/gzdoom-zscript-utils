@@ -1,10 +1,9 @@
 class MapDescription : Actor {
 	override void PostBeginPlay() {
 		INIFile data;
-		data.ReadLumpsNamed("DemoMapDescriptions", sectionIgnoreCase: true);
+		data.ReadLumpsNamed("DemoMapDescriptions");
 		
-		let mapName = level.MapName;
-		let description = data.Get(mapName, "Description", sectionIgnoreCase: true);
+		let description = data.Get(level.MapName, "Description");
 		
 		// INIFile provides a convenience method for looking up a section for the current map:
 		let descriptionExtra = data.CurrentMapGet("DescriptionExtra");
@@ -27,7 +26,7 @@ class MapDescription : Actor {
 class MapDescriptionDump : Actor {
 	override void PostBeginPlay() {
 		INIFile data;
-		data.ReadLumpsNamed("DemoMapDescriptions", sectionIgnoreCase: true);
+		data.ReadLumpsNamed("DemoMapDescriptions");
 		data.DumpToConsole();
 		
 		Destroy();

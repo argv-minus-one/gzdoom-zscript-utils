@@ -56,12 +56,13 @@ struct INIFile {
 	}
 	
 	Array<INISection> Sections;
+	bool SectionCaseSensitive, KeyCaseSensitive;
 	
 	void Clear() {
 		Sections.Clear();
 	}
 	
-	void Read(int lump, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) {
+	void Read(int lump) {
 		let text = Wads.ReadLump(lump);
 		Array<String> lines;
 		text.Split(lines, "\n", TOK_SKIPEMPTY);
@@ -89,7 +90,7 @@ struct INIFile {
 				
 				let sectionName = line.Mid(1, end - 1);
 				
-				curSection = NewSection(sectionName, ignoreCase: sectionIgnoreCase);
+				curSection = NewSection(sectionName);
 				curKey = uint.max;
 			}
 			else {
@@ -105,7 +106,7 @@ struct INIFile {
 					let key = TrimSpace(line.Left(equalSign), fromStart: false);
 					let value = TrimSpace(line.Mid(equalSign + 1), fromEnd: false);
 					String oldValue;
-					[oldValue, curKey] = curSection.Set(key, value, keyIgnoreCase: keyIgnoreCase);
+					[oldValue, curKey] = curSection.Set(key, value);
 				}
 				else if (curKey != uint.max) {
 					// This is a continuation line. Append its contents to the value of the current key.
@@ -119,29 +120,30 @@ struct INIFile {
 		}
 	}
 	
-	void ReadLumpsNamed(String lumpName, int ns = Wads.GlobalNamespace, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) {
+	void ReadLumpsNamed(String lumpName, int ns = Wads.GlobalNamespace) {
 		for (let lump = Wads.FindLump(lumpName, ns: ns); lump >= 0; lump = Wads.FindLump(lumpName, lump + 1, ns: ns))
-			Read(lump, sectionIgnoreCase: sectionIgnoreCase, keyIgnoreCase: keyIgnoreCase);
+			Read(lump);
 	}
 	
-	INISection NewSection(String name, bool ignoreCase = false) {
-		let s = Section(name, ignoreCase: ignoreCase);
+	INISection NewSection(String name) {
+		let s = Section(name);
 		if (!s) {
 			s = new("INISection");
 			s.Name = name;
+			s.KeyCaseSensitive = KeyCaseSensitive;
 			Sections.Push(s);
 		}
 		return s;
 	}
 	
-	INISection, uint Section(String sectionName, bool ignoreCase = false) const {
+	INISection, uint Section(String sectionName) const {
 		uint i, s;
 		for (i = 0, s = Sections.Size(); i < s; i++) {
 			let section = Sections[i];
 			if (!section)
 				continue;
 			let foundName = section.name;
-			if (ignoreCase? foundName ~== sectionName : foundName == sectionName)
+			if (SectionCaseSensitive? foundName == sectionName : foundName ~== sectionName)
 				return section, i;
 		}
 		
@@ -149,11 +151,11 @@ struct INIFile {
 	}
 	
 	INISection CurrentMapSection() const {
-		return Section(level.MapName, ignoreCase: true);
+		return Section(level.MapName);
 	}
 	
-	String, INISection, uint Get(String sectionName, String key, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) const {
-		let section = Section(sectionName, ignoreCase: sectionIgnoreCase);
+	String, INISection, uint Get(String sectionName, String key) const {
+		let section = Section(sectionName);
 		if (!section)
 			return "", null, 0;
 		
@@ -164,11 +166,11 @@ struct INIFile {
 		return value, section, keyIndex;
 	}
 	
-	String, INISection, uint CurrentMapGet(String key, bool ignoreCase = false) const {
-		return Get(level.MapName, key, sectionIgnoreCase: true, keyIgnoreCase: ignoreCase);
+	String, INISection, uint CurrentMapGet(String key) const {
+		return Get(level.MapName, key);
 	}
 	
-	String, INISection, uint Set(String sectionName, String key, String value, bool sectionIgnoreCase = false, bool keyIgnoreCase = false) {
+	String, INISection, uint Set(String sectionName, String key, String value) {
 		let section = NewSection(sectionName);
 		String oldValue;
 		uint keyIndex;
@@ -194,31 +196,38 @@ struct INIFile {
 	 *
 	 * The result will be that all keys in + or - sections appear in the corresponding exact-match sections.
 	 *
+	 * If this method will be used, SectionCaseSensitive must be false *before* loading INI files. If it is true, this method will set it to false and log a warning.
+	 *
 	 * @param purgeSuperSubSections If true, + and - sections will be removed after merging.
 	 * @param purgeNoMatch If true, sections matching no known class will be removed after merging.
 	 */
-	void MergeByActorClass(bool purgeSuperSubSections = false, bool purgeNoMatch = false, bool keyIgnoreCase = false) {
+	void MergeByActorClass(bool purgeSuperSubSections = false, bool purgeNoMatch = false) {
+		if (SectionCaseSensitive) {
+			Console.Printf("\cgINIFile.MergeByActorClass called on an INIFile whose SectionCaseSensitive is set to true. This will almost certainly cause incorrect results, because class names are case-insensitive! Set SectionCaseSensitive to false *before* reading INI files and calling MergeByActorClass.");
+			SectionCaseSensitive = false;
+		}
+		
 		for (uint classIndex = 0, classCount = AllActorClasses.Size(); classIndex < classCount; classIndex++) {
 			Class<Object> subjClass = AllActorClasses[classIndex];
 			let subjName = subjClass.GetClassName();
-			let subjSection = Section(subjName, ignoreCase: true);
-			let superSection = Section(subjName .. "-", ignoreCase: true);
+			let subjSection = Section(subjName);
+			let superSection = Section(subjName .. "-");
 			
 			// Walk up the list of superclasses.
 			for (let parClass = subjClass; parClass; parClass = parClass.GetParentClass()) {
 				let parName = parClass.GetClassName();
 				
 				// Merge in its + section, if any.
-				let parSubSection = Section(parName .. "+", ignoreCase: true);
+				let parSubSection = Section(parName .. "+");
 				if (parSubSection) {
 					if (!subjSection)
-						subjSection = NewSection(subjName, ignoreCase: true);
+						subjSection = NewSection(subjName);
 					subjSection.Merge(parSubSection);
 				}
 				
 				// Merge in this class' - section, if any.
 				if (superSection) {
-					let parSection = NewSection(parName, ignoreCase: true);
+					let parSection = NewSection(parName);
 					parSection.Merge(superSection);
 				}
 				
@@ -255,10 +264,11 @@ struct INIFile {
 
 class INISection {
 	String Name;
+	bool KeyCaseSensitive;
 	Array<String> Keys, Values;
 	
-	uint IndexOf(String key, bool ignoreCase = false) const {
-		if (!ignoreCase || key == "")
+	uint IndexOf(String key) const {
+		if (KeyCaseSensitive || key == "")
 			return Keys.Find(key);
 		else {
 			uint idx, size;
@@ -269,17 +279,17 @@ class INISection {
 		}
 	}
 	
-	String, uint Get(String key, bool ignoreCase = false) const {
-		let idx = IndexOf(key, ignoreCase: ignoreCase);
+	String, uint Get(String key) const {
+		let idx = IndexOf(key);
 		return (idx == Values.Size()? "" : Values[idx]), idx;
 	}
 	
 	String, uint CurrentMapGet() const {
-		return Get(level.MapName, ignoreCase: true);
+		return Get(level.MapName);
 	}
 	
-	String, uint Set(String key, String value, bool keyIgnoreCase = false) {
-		let idx = IndexOf(key, ignoreCase: keyIgnoreCase), ov = "";
+	String, uint Set(String key, String value) {
+		let idx = IndexOf(key), ov = "";
 		
 		if (idx != Values.Size()) {
 			ov = Values[idx];
@@ -293,8 +303,8 @@ class INISection {
 		return ov, idx;
 	}
 	
-	String Remove(String key, bool ignoreCase = false) {
-		let idx = IndexOf(key, ignoreCase: ignoreCase), ov = "";
+	String Remove(String key) {
+		let idx = IndexOf(key), ov = "";
 		
 		if (idx < Keys.Size()) {
 			ov = Values[idx];
@@ -305,9 +315,9 @@ class INISection {
 		return ov;
 	}
 	
-	void Merge(INISection other, bool keepExisting = true, bool keyIgnoreCase = false) {
+	void Merge(INISection other, bool keepExisting = true) {
 		for (uint otherIndex = 0, otherSize = other.Keys.Size(); otherIndex < otherSize; otherIndex++) {
-			let myIndex = IndexOf(other.Keys[otherIndex], ignoreCase: keyIgnoreCase);
+			let myIndex = IndexOf(other.Keys[otherIndex]);
 			
 			if (myIndex == Keys.Size()) {
 				Keys.Push(other.Keys[otherIndex]);
