@@ -71,13 +71,13 @@ Represents a complete INI file (or several of them). The main methods are:
 	
 	You can call this method more than once, with different lump names, to merge data from several different lumps by name. Once again, data read later overrides data read earlier.
 
-* `String Get(String sectionName, String key)`
+* `String Get(String sectionName, String key, String default = "")`
 	
-	Gets the value of the given key in the given section. Returns `""` (the empty string) if there is no such section and/or key.
+	Gets the value of the given key in the given section. Returns the given `default` value (which is, by default, the empty string `""`) if there is no such section and/or key.
 	
-	There are also `GetInt`, `GetDouble`, and `GetBool` methods, which return those types instead.
+	There are also `GetInt`, `GetDouble`, and `GetBool` methods, which return those types instead. Those methods take a default value as well, but will also use it if the key is present but the value is empty (that is, written like `IsAwesome=`).
 
-* `String CurrentMapGet(String key)`
+* `String CurrentMapGet(String key, String default = "")`
 	
 	Like `Get`, but looks for a section with the same name as the current map (e.g. `MAP01`). If you're using this library to store extra information about maps, and you want to look up that information for the current map, use `CurrentMapGet`.
 	
@@ -101,13 +101,13 @@ You can also look up sections. This is faster if you need to get several values 
 
 Represents a single section of an INI file (or several, merged together). `INISection` objects have these methods:
 
-* `String Get(String key)`
+* `String Get(String key, String default = "")`
 	
-	Gets the value of the given key in this section. Returns `""` (the empty string) if there is no such key.
+	Gets the value of the given key in this section. Returns the given `default` value (which is, by default, the empty string `""`) if there is no such section and/or key.
 	
 	There are also `GetInt`, `GetDouble`, and `GetBool` methods, which return those types instead.
 
-* `String CurrentMapGet()`
+* `String CurrentMapGet(String default = "")`
 	
 	Gets the value of the key with the same name as the current map (e.g. `MAP01`). This is like the `CurrentMapGet` method on `INIFile`, but for looking up keys rather than sections.
 	

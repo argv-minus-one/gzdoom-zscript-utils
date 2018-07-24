@@ -19,7 +19,7 @@ class MapDescription : Actor {
 		else
 			Console.Printf("No DescriptionExtra for %s.", level.MapName);
 		
-		Console.Printf("This map is%s awesome.", data.CurrentMapGetBool("Awesome")? "" : " not");
+		Console.Printf("This map is%s awesome.", data.CurrentMapGetBool("NotAwesome", true)? " not" : "");
 		
 		Destroy();
 	}
