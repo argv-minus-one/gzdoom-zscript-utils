@@ -183,3 +183,29 @@ Whitespace is trimmed from the beginning and end of each line. Whitespace around
 Line endings must be either MS-DOS (CR LF) or Unix (LF) style. The line endings used by very old Macs (CR) are not supported. (Modern Macs use Unix style line endings.)
 
 Keys can exist outside of any section (that is, with no section header above them). They will be placed in a section whose name is `""` (the empty string).
+
+### Multi-Sections
+
+Section headers that contain the character `|` are treated specially. Instead of being processed as a single section, a section header like `[Fist|Pistol|Shotgun]` is treated as *multiple* sections (`Fist`, `Pistol`, and `Shotgun` in the example) with identical contents.
+
+In other words:
+
+	```
+	[Fist|Pistol|Shotgun]
+	SomeKey=SomeValue
+	```
+
+…is interpreted as…
+
+	```
+	[Fist]
+	SomeKey=SomeValue
+	
+	[Pistol]
+	SomeKey=SomeValue
+	
+	[Shotgun]
+	SomeKey=SomeValue
+	```
+
+This shorthand should be useful for applying the same settings to several classes/maps/etc at a time.
