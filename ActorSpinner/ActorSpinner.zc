@@ -11,14 +11,18 @@ struct ActorSpinner play {
 	/** When accelerating, this is how much Vel in/decreases per tic. */
 	float Accel;
 	
+	/** This is set to true when LandAt is called, then set to false when landing is complete. */
+	private bool Landing;
+	
 	/** If not zero, acceleration will be at this rate until Vel reaches DesVel. */
 	private float TmpAccel;
 	
-	/** If TmpAccel is in use, then when Vel reaches DesVel, rotation will snap to this angle (if possible). */
+	/** When landing, when Vel reaches DesVel, rotation will snap to this angle (if possible). */
 	private float SnapAngle;
 	
 	/** Resets the state of this ActorSpinner. The fields mo, DesVel, Accel, and Decel are not affected. */
 	void Reset() {
+		Landing = false;
 		Vel = TmpAccel = 0;
 	}
 	
@@ -28,9 +32,9 @@ struct ActorSpinner play {
 			return;
 		}
 		
-		if (TmpAccel != 0.) {
+		if (Landing) {
 			if ((Vel >= DesVel) != (Vel + TmpAccel >= DesVel)) {
-				// Reached DesVel while TmpAccel is active.
+				// Reached DesVel while landing.
 				// Try to snap to SnapAngle. If impossible, get as close as possible.
 				
 				// This is the range of achievable angular velocities on this tic. X is in the negative direction, Y is in the positive direction.
@@ -42,12 +46,23 @@ struct ActorSpinner play {
 				Vel = clamp(DesVel, allowedVel.X, allowedVel.Y);
 				mo.Roll = clamp(SnapAngle, allowedRoll.X, allowedRoll.Y);
 				
-				// TmpAccel mode complete.
+				// Landing mode complete.
+				Landing = false;
 				TmpAccel = 0;
 			}
-			else {
+			else if (TmpAccel) {
 				// Apply acceleration and rotation according to TmpAccel.
 				Vel += TmpAccel;
+				mo.Roll = Actor.Normalize180(mo.Roll + Vel);
+			}
+			else {
+				// Waiting for optimal landing angle. Check if it's been reached yet.
+				LandAt(SnapAngle);
+				
+				if (TmpAccel)
+					Vel += TmpAccel; // Yep, reached.
+				
+				// Either way, apply rotation.
 				mo.Roll = Actor.Normalize180(mo.Roll + Vel);
 			}
 		}
@@ -74,47 +89,71 @@ struct ActorSpinner play {
 		if (Vel < double.epsilon && Vel > -double.epsilon)
 			return; // Already landed.
 		
+		Landing = true;
 		SnapAngle = desiredRoll;
 		
-		let low = DesVel < Vel? -Accel : 0;
-		let high = DesVel > Vel? Accel : 0;
-		let step = (high - low) / 1000.;
-		float searchStart, searchEnd;
+		float proposedAccel[2];
+		int proposedTime[2];
 		
-		if (DesVel < Vel) {
-			searchStart = low;
-			searchEnd = high;
+		for (let ofs = 0; ofs < 2; ofs++) {
+			let low = DesVel < Vel? -Accel : 0;
+			let high = DesVel > Vel? Accel : 0;
+			let step = (high - low) / 1000.;
+			let curRoll = mo.Roll + (Vel * ofs);
+			float searchStart, searchEnd;
+			let found = false;
+			
+			if (DesVel < Vel) {
+				searchStart = low;
+				searchEnd = high;
+			}
+			else {
+				searchStart = high;
+				searchEnd = low;
+				step = -step;
+			}
+			
+			for (let mayAccel = searchStart; (mayAccel >= searchEnd) == (searchStart >= searchEnd); mayAccel += step) {
+				let time = (DesVel - Vel + mayAccel) / mayAccel;
+				let landAngle = Actor.Normalize180(curRoll + (time * (Vel + ((DesVel - Vel + mayAccel + mayAccel) / 2.))));
+				let da = Actor.deltaangle(desiredRoll, landAngle);
+				
+				if (da > -Accel && da < Accel) {
+					proposedAccel[ofs] = mayAccel;
+					proposedTime[ofs] = ceil(time);
+					found = true;
+					break;
+				}
+			}
+			
+			if (!found)
+				proposedAccel[ofs] = float.NaN;
+		}
+		
+		if (proposedAccel[0] != proposedAccel[0] /* is NaN */) {
+			Console.Printf("\cgSpriteSpinner(%s) @ (% 03.5f, % 03.5f) cannot compute a landing acceleration slope!", mo.GetClassName(), Vel, mo.Roll);
+			Landing = false;
+			mo.Roll = desiredRoll;
+			Vel = DesVel;
+			TmpAccel = 0;
+		}
+		else if (proposedAccel[1] == proposedAccel[1] /* is not NaN */ && proposedTime[1] < proposedTime[0]) {
+			// Waiting a tic at current velocity will result in a shorter spin-down. Do nothing for now.
 		}
 		else {
-			searchStart = high;
-			searchEnd = low;
-			step = -step;
+			// Reached optimal landing angle. Begin spinning down.
+			TmpAccel = proposedAccel[0];
 		}
-		
-		for (let mayAccel = searchStart; (mayAccel >= searchEnd) == (searchStart >= searchEnd); mayAccel += step) {
-			let time = (DesVel - Vel + mayAccel) / mayAccel;
-			let landAngle = Actor.Normalize180(mo.Roll + (time * (Vel + ((DesVel - Vel + mayAccel + mayAccel) / 2.))));
-			let da = Actor.deltaangle(desiredRoll, landAngle);
-			
-			if (da > -Accel && da < Accel) {
-				TmpAccel = mayAccel;
-				return;
-			}
-		}
-		
-		Console.Printf("\cgSpriteSpinner(%s) @ (% 03.5f, % 03.5f) cannot compute a landing acceleration slope!", mo.GetClassName(), Vel, mo.Roll);
-		mo.Roll = desiredRoll;
-		Vel = DesVel;
-		TmpAccel = 0;
 	}
 	
 	/** Cancels the effect of a previous call to LandAt. */
 	void CancelLanding() {
+		Landing = false;
 		TmpAccel = 0;
 	}
 	
 	/** Returns true if this ActorSpinner is still in landing mode. */
 	bool IsLandingInProgress() const {
-		return TmpAccel != 0.;
+		return Landing;
 	}
 }
