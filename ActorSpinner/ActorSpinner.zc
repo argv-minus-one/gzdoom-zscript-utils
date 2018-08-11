@@ -71,6 +71,9 @@ struct ActorSpinner play {
 	 * The main use case of this method is to make the object spin down such that, when it stops spinning, it ends up at the desired roll angle (typically zero).
 	 */
 	void LandAt(float desiredRoll) {
+		if (Vel < double.epsilon && Vel > -double.epsilon)
+			return; // Already landed.
+		
 		SnapAngle = desiredRoll;
 		
 		let low = DesVel < Vel? -Accel : 0;
