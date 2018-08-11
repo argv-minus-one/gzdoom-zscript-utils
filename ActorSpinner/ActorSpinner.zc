@@ -49,33 +49,32 @@ struct ActorSpinner play {
 				// Landing mode complete.
 				Landing = false;
 				TmpAccel = 0;
+				
+				// Skip normal rotation for this tic.
+				return;
 			}
 			else if (TmpAccel) {
-				// Apply acceleration and rotation according to TmpAccel.
+				// Apply acceleration according to TmpAccel.
 				Vel += TmpAccel;
-				mo.Roll = Actor.Normalize180(mo.Roll + Vel);
 			}
-			else {
+			else if (!TmpAccel) {
 				// Waiting for optimal landing angle. Check if it's been reached yet.
 				LandAt(SnapAngle);
 				
 				if (TmpAccel)
 					Vel += TmpAccel; // Yep, reached.
-				
-				// Either way, apply rotation.
-				mo.Roll = Actor.Normalize180(mo.Roll + Vel);
 			}
 		}
 		else {
-			// Apply acceleration.
+			// Apply normal acceleration.
 			if (DesVel > Vel)
 				Vel = min(Vel + Accel, DesVel);
 			else
 				Vel = max(Vel - Accel, DesVel);
-			
-			// Apply rotation.
-			mo.Roll = Actor.Normalize180(mo.Roll + Vel);
 		}
+		
+		// Apply rotation.
+		mo.Roll = Actor.Normalize180(mo.Roll + Vel);
 	}
 	
 	/**
